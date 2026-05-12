@@ -12,6 +12,22 @@ import (
 	"sync"
 )
 
+type LogEntry struct {
+	Timestamp    string // время в формате "2024-01-15 10:30:00"
+	IP           string // IP адрес клиента
+	Method       string // HTTP метод (GET, POST и т.д.)
+	URL          string // путь запроса
+	StatusCode   int    // HTTP статус код
+	ResponseTime int    // время ответа в миллисекундах
+}
+
+type Statistics struct {
+	TotalRequests   int            // общее количество запросов
+	ErrorCount      int            // количество ошибок (статус >= 400)
+	RequestsByIP    map[string]int // количество запросов с каждого IP
+	AverageRespTime float64        // среднее время ответа
+}
+
 func parseLogLine(line string) (LogEntry, error) {
 	parts := strings.Split(line, ",")
 
@@ -53,9 +69,11 @@ func readLogs(filename string) (<-chan LogEntry, error) {
 
 		scanner := bufio.NewScanner(file)
 
+		if scanner.Scan() {
+		}
+
 		for scanner.Scan() {
 			line := scanner.Text()
-
 			logEntry, err := parseLogLine(line)
 
 			if err != nil {
@@ -98,13 +116,13 @@ func processLogs(ctx context.Context, input <-chan LogEntry, numWorkers int) <-c
 		}
 	}
 
-	for i := 0; i <= numWorkers; i++ {
+	for i := 0; i < numWorkers; i++ {
 		go worker()
 	}
 
 	go func() {
-		defer wg.Wait()
-		defer close(output)
+		wg.Wait()
+		close(output)
 	}()
 
 	return output
