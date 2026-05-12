@@ -24,9 +24,19 @@ func main() {
 
 	unfilteredChan, filteredChan := tee(processedChan, 100)
 
-	stats := calculateStats(unfilteredChan)
+	statsResult := make(chan Statistics)
+	errorStatsResult := make(chan Statistics)
 
-	errorStats := calculateStats(filterLogs(filteredChan, 400))
+	go func() {
+		statsResult <- calculateStats(unfilteredChan)
+	}()
+
+	go func() {
+		errorStatsResult <- calculateStats(filterLogs(filteredChan, 400))
+	}()
+
+	stats := <-statsResult
+	errorStats := <-errorStatsResult
 
 	fmt.Printf("\n--- ОБЩИЙ ОТЧЕТ ---\n")
 	fmt.Printf("Всего запросов: %d\n", stats.TotalRequests)
