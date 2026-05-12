@@ -6,6 +6,8 @@ import (
 	"log"
 )
 
+// main запускает обработку логов, собирает статистику и печатает отчёты.
+// В качестве источника используется файл testdata/logs.csv.
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

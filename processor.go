@@ -12,6 +12,8 @@ import (
 	"sync"
 )
 
+// LogEntry представляет одну запись из лог-файла веб-сервера.
+// Каждое поле соответствует колонке CSV: время, IP, метод, URL, статус и время ответа.
 type LogEntry struct {
 	Timestamp    string // время в формате "2024-01-15 10:30:00"
 	IP           string // IP адрес клиента
@@ -21,6 +23,7 @@ type LogEntry struct {
 	ResponseTime int    // время ответа в миллисекундах
 }
 
+// Statistics содержит агрегированные метрики по набору лог-записей.
 type Statistics struct {
 	TotalRequests   int            // общее количество запросов
 	ErrorCount      int            // количество ошибок (статус >= 400)
@@ -28,6 +31,8 @@ type Statistics struct {
 	AverageRespTime float64        // среднее время ответа
 }
 
+// parseLogLine разбирает одну строку CSV и возвращает LogEntry.
+// Возвращает ошибку, если строка не соответствует ожидаемому формату.
 func parseLogLine(line string) (LogEntry, error) {
 	parts := strings.Split(line, ",")
 
@@ -55,6 +60,8 @@ func parseLogLine(line string) (LogEntry, error) {
 	}, nil
 }
 
+// readLogs открывает CSV-файл логов и возвращает канал с прочитанными записями.
+// Файл читается асинхронно, а неверные строки пропускаются с логированием.
 func readLogs(filename string) (<-chan LogEntry, error) {
 	file, err := os.Open(filename)
 	if err != nil {
@@ -90,6 +97,8 @@ func readLogs(filename string) (<-chan LogEntry, error) {
 	return logs, nil
 }
 
+// processLogs выполняет параллельную обработку логов с помощью worker-ов.
+// Каждый worker нормализует URL и передаёт результат дальше по каналу.
 func processLogs(ctx context.Context, input <-chan LogEntry, numWorkers int) <-chan LogEntry {
 	output := make(chan LogEntry)
 	var wg sync.WaitGroup
@@ -128,6 +137,8 @@ func processLogs(ctx context.Context, input <-chan LogEntry, numWorkers int) <-c
 	return output
 }
 
+// tee дублирует входящий канал логов в два буферизованных канала.
+// Это позволяет одновременно собирать общую статистику и фильтровать записи.
 func tee(input <-chan LogEntry, bufferSize int) (<-chan LogEntry, <-chan LogEntry) {
 	output1 := make(chan LogEntry, bufferSize)
 	output2 := make(chan LogEntry, bufferSize)
@@ -142,6 +153,8 @@ func tee(input <-chan LogEntry, bufferSize int) (<-chan LogEntry, <-chan LogEntr
 	return output1, output2
 }
 
+// calculateStats собирает базовую статистику по входящему потоку лог-записей.
+// Подсчитывает общее количество запросов, ошибок, разбивает по IP и вычисляет среднее время ответа.
 func calculateStats(input <-chan LogEntry) Statistics {
 	stats := Statistics{
 		RequestsByIP: make(map[string]int),
@@ -161,6 +174,8 @@ func calculateStats(input <-chan LogEntry) Statistics {
 	return stats
 }
 
+// filterLogs пропускает только записи с кодом статуса выше заданного minStatus.
+// Используется для выделения ошибок и аварийных запросов.
 func filterLogs(input <-chan LogEntry, minStatus int) <-chan LogEntry {
 	errorLogs := make(chan LogEntry)
 	go func() {
@@ -174,6 +189,8 @@ func filterLogs(input <-chan LogEntry, minStatus int) <-chan LogEntry {
 	return errorLogs
 }
 
+// printTopIPs выводит в консоль топ N IP адресов по числу запросов.
+// Сортировка выполняется по убыванию количества запросов.
 func printTopIPs(requestsByIP map[string]int, n int) {
 	type ipStats struct {
 		ip    string
